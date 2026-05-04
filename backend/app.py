@@ -149,27 +149,49 @@ def get_query_embedding(text: str) -> list[float]:
     return result.embeddings[0]
 
 
+# ─────────────────────────────────────────────────────────────────
+# Search configuration constants — surfaced so the UI can show them.
+# ─────────────────────────────────────────────────────────────────
+EMBEDDING_MODEL = "voyage-4-large"
+RERANK_MODEL = "rerank-2.5"
+RRF_K = 60                  # reciprocal-rank-fusion constant
+HYBRID_CANDIDATES = 50      # docs pulled from each retriever before fusion
+RERANK_CANDIDATES = 30      # docs sent into the reranker after RRF
+FUZZY_MAX_EDITS = 2         # Atlas Search fuzzy: 0–2 character edits tolerated
+FUZZY_PREFIX_LEN = 1        # first N chars must match exactly (faster + safer)
+
+
 @app.get("/api/search")
 def search(
     q: str = Query(..., min_length=1),
     mode: str = Query("hybrid", pattern="^(vector|text|hybrid|rerank)$"),
     category: Optional[str] = None,
     limit: int = Query(12, ge=1, le=50),
+    explain: bool = Query(False, description="Include per-stage diagnostics for the UI modal."),
 ):
     if mode == "vector":
-        results = vector_search(q, category, limit)
+        results, debug = vector_search(q, category, limit, explain=explain)
     elif mode == "text":
-        results = text_search(q, category, limit)
+        results, debug = text_search(q, category, limit, explain=explain)
     elif mode == "rerank":
-        results = hybrid_rerank_search(q, category, limit)
+        results, debug = hybrid_rerank_search(q, category, limit, explain=explain)
     else:
-        results = hybrid_search(q, category, limit)
-    return {"query": q, "mode": mode, "count": len(results), "results": results}
+        results, debug = hybrid_search(q, category, limit, explain=explain)
+
+    payload = {"query": q, "mode": mode, "count": len(results), "results": results}
+    if explain:
+        payload["explain"] = debug
+    return payload
 
 
-def vector_search(query: str, category: Optional[str], limit: int):
-    query_vector = get_query_embedding(query)
-    vs_stage = {
+# ─────────────────────────────────────────────────────────────────
+# Internal helpers
+# ─────────────────────────────────────────────────────────────────
+
+def _build_vector_pipeline(query_vector: list[float], category: Optional[str], limit: int) -> list[dict]:
+    """Build the $vectorSearch pipeline. Returned as a plain list[dict] so we can
+    both execute it and surface it in the explain payload."""
+    vs_stage: dict = {
         "$vectorSearch": {
             "index": "vector_index",
             "path": "description_embedding",
@@ -180,71 +202,259 @@ def vector_search(query: str, category: Optional[str], limit: int):
     }
     if category:
         vs_stage["$vectorSearch"]["filter"] = {"category": category}
-
-    pipeline = [
+    return [
         vs_stage,
         {"$addFields": {"score": {"$meta": "vectorSearchScore"}}},
         {"$project": {"description_embedding": 0}},
     ]
-    return _serialize(coll.aggregate(pipeline))
 
 
-def text_search(query: str, category: Optional[str], limit: int):
+def _build_text_pipeline(query: str, category: Optional[str], limit: int) -> list[dict]:
+    """Build the $search compound pipeline with both an exact and a fuzzy clause.
+
+    Why two clauses?
+      * `should[0]` (boosted exact text) — clean queries score highest
+      * `should[1]` (fuzzy) — `runing` still finds `running` (typo recovery)
+    """
+    fuzzy_cfg = {"maxEdits": FUZZY_MAX_EDITS, "prefixLength": FUZZY_PREFIX_LEN}
     compound: dict = {
-        "must": [
-            {"text": {"query": query, "path": ["name", "description"]}}
-        ]
+        "should": [
+            {
+                "text": {
+                    "query": query,
+                    "path": ["name", "description"],
+                    "score": {"boost": {"value": 3}},
+                }
+            },
+            {
+                "text": {
+                    "query": query,
+                    "path": ["name", "description"],
+                    "fuzzy": fuzzy_cfg,
+                }
+            },
+        ],
+        "minimumShouldMatch": 1,
     }
     if category:
         compound["filter"] = [{"text": {"query": category, "path": "category"}}]
 
-    pipeline = [
+    return [
         {"$search": {"index": "text_search_index", "compound": compound}},
         {"$addFields": {"score": {"$meta": "searchScore"}}},
         {"$project": {"description_embedding": 0}},
         {"$limit": limit},
     ]
-    return _serialize(coll.aggregate(pipeline))
 
 
-def hybrid_search(query: str, category: Optional[str], limit: int, k: int = 60):
-    vector_results = vector_search(query, category, limit=50)
-    text_results = text_search(query, category, limit=50)
+def _doc_key(doc: dict, fallback_index: int) -> str:
+    """Stable per-document key used by the RRF fusion table."""
+    return str(doc.get("id", fallback_index))
+
+
+# ─────────────────────────────────────────────────────────────────
+# Search modes
+# ─────────────────────────────────────────────────────────────────
+
+def vector_search(query: str, category: Optional[str], limit: int, explain: bool = False):
+    query_vector = get_query_embedding(query)
+    pipeline = _build_vector_pipeline(query_vector, category, limit)
+    results = _serialize(coll.aggregate(pipeline))
+    debug = None
+    if explain:
+        debug = {
+            "stages": [
+                {
+                    "name": "Embed query",
+                    "detail": f"Voyage AI {EMBEDDING_MODEL} → {len(query_vector)}-dim vector",
+                    "embedding_preview": [round(v, 4) for v in query_vector[:8]],
+                    "embedding_dims": len(query_vector),
+                },
+                {
+                    "name": "$vectorSearch",
+                    "detail": "Cosine similarity over description_embedding",
+                    "pipeline": pipeline,
+                    "results": _summarise(results, "similarity"),
+                },
+            ],
+        }
+    return results, debug
+
+
+def text_search(query: str, category: Optional[str], limit: int, explain: bool = False):
+    pipeline = _build_text_pipeline(query, category, limit)
+    results = _serialize(coll.aggregate(pipeline))
+    debug = None
+    if explain:
+        debug = {
+            "stages": [
+                {
+                    "name": "$search (compound: exact + fuzzy)",
+                    "detail": (
+                        f"Atlas Search BM25-like text scoring on name + description, "
+                        f"with fuzzy maxEdits={FUZZY_MAX_EDITS}, prefixLength={FUZZY_PREFIX_LEN}"
+                    ),
+                    "fuzzy": {"maxEdits": FUZZY_MAX_EDITS, "prefixLength": FUZZY_PREFIX_LEN},
+                    "pipeline": pipeline,
+                    "results": _summarise(results, "text score"),
+                },
+            ],
+        }
+    return results, debug
+
+
+def hybrid_search(query: str, category: Optional[str], limit: int, k: int = RRF_K, explain: bool = False):
+    """Reciprocal Rank Fusion of vector + text results.
+    score(doc) = sum over retrievers of 1 / (k + rank_in_retriever + 1)
+    """
+    query_vector = get_query_embedding(query)
+    vector_pipeline = _build_vector_pipeline(query_vector, category, HYBRID_CANDIDATES)
+    text_pipeline = _build_text_pipeline(query, category, HYBRID_CANDIDATES)
+
+    vector_results = _serialize(coll.aggregate(vector_pipeline))
+    text_results = _serialize(coll.aggregate(text_pipeline))
+
+    # Snapshot retriever scores BEFORE fusion mutates `score` to the RRF value.
+    vector_summary = _summarise(vector_results, "similarity", top=10) if explain else None
+    text_summary = _summarise(text_results, "text score", top=10) if explain else None
 
     rrf: dict[str, float] = {}
+    contrib: dict[str, dict] = {}
     doc_map: dict[str, dict] = {}
 
     for rank, doc in enumerate(vector_results):
-        did = str(doc.get("id", rank))
-        rrf[did] = rrf.get(did, 0) + 1 / (k + rank + 1)
+        did = _doc_key(doc, rank)
+        c = 1 / (k + rank + 1)
+        rrf[did] = rrf.get(did, 0) + c
+        contrib.setdefault(did, {})["vector"] = {"rank": rank + 1, "score": doc.get("score"), "contrib": round(c, 6)}
         doc_map[did] = doc
 
     for rank, doc in enumerate(text_results):
-        did = str(doc.get("id", rank))
-        rrf[did] = rrf.get(did, 0) + 1 / (k + rank + 1)
+        did = _doc_key(doc, rank)
+        c = 1 / (k + rank + 1)
+        rrf[did] = rrf.get(did, 0) + c
+        contrib.setdefault(did, {})["text"] = {"rank": rank + 1, "score": doc.get("score"), "contrib": round(c, 6)}
         doc_map[did] = doc
 
     sorted_ids = sorted(rrf, key=lambda x: rrf[x], reverse=True)[:limit]
-    results = []
+    results: list[dict] = []
     for did in sorted_ids:
         doc = doc_map[did]
         doc["score"] = round(rrf[did], 6)
         results.append(doc)
-    return results
+
+    debug = None
+    if explain:
+        # Build a flat fusion table: top docs with their per-retriever contributions.
+        fusion_rows = []
+        for did in sorted_ids:
+            d = doc_map[did]
+            row = {
+                "id": d.get("id"),
+                "name": d.get("name"),
+                "vector": contrib.get(did, {}).get("vector"),
+                "text": contrib.get(did, {}).get("text"),
+                "rrf_score": round(rrf[did], 6),
+            }
+            fusion_rows.append(row)
+
+        debug = {
+            "stages": [
+                {
+                    "name": "Embed query",
+                    "detail": f"Voyage AI {EMBEDDING_MODEL} → {len(query_vector)}-dim vector",
+                    "embedding_preview": [round(v, 4) for v in query_vector[:8]],
+                    "embedding_dims": len(query_vector),
+                },
+                {
+                    "name": "Retriever A — $vectorSearch",
+                    "detail": f"Top {HYBRID_CANDIDATES} candidates by cosine similarity",
+                    "pipeline": vector_pipeline,
+                    "results": vector_summary,
+                },
+                {
+                    "name": "Retriever B — $search (exact + fuzzy)",
+                    "detail": (
+                        f"Top {HYBRID_CANDIDATES} candidates from Atlas Search; "
+                        f"fuzzy maxEdits={FUZZY_MAX_EDITS}, prefixLength={FUZZY_PREFIX_LEN}"
+                    ),
+                    "fuzzy": {"maxEdits": FUZZY_MAX_EDITS, "prefixLength": FUZZY_PREFIX_LEN},
+                    "pipeline": text_pipeline,
+                    "results": text_summary,
+                },
+                {
+                    "name": "Fusion — Reciprocal Rank Fusion",
+                    "detail": f"score(doc) = Σ 1 / (k + rank_in_retriever + 1) with k = {k}",
+                    "rrf_k": k,
+                    "fusion_rows": fusion_rows,
+                },
+            ],
+        }
+    return results, debug
 
 
-def hybrid_rerank_search(query: str, category: Optional[str], limit: int):
-    candidates = hybrid_search(query, category, limit=30)
+def hybrid_rerank_search(query: str, category: Optional[str], limit: int, explain: bool = False):
+    candidates, hybrid_debug = hybrid_search(query, category, RERANK_CANDIDATES, explain=explain)
     if not candidates:
-        return candidates
+        return candidates, hybrid_debug
+
     descriptions = [doc.get("description", doc.get("name", "")) for doc in candidates]
-    reranked = vo.rerank(query=query, documents=descriptions, model="rerank-2.5", top_k=limit)
-    results = []
-    for r in reranked.results:
+    reranked = vo.rerank(query=query, documents=descriptions, model=RERANK_MODEL, top_k=limit)
+
+    # Capture the pre-rerank order so the UI can show the reordering.
+    rrf_order = [
+        {"id": d.get("id"), "name": d.get("name"), "rrf_score": d.get("score")}
+        for d in candidates
+    ]
+
+    results: list[dict] = []
+    rerank_rows = []
+    for new_rank, r in enumerate(reranked.results):
         doc = candidates[r.index]
+        prev_rank = r.index + 1
         doc["score"] = round(r.relevance_score, 4)
         results.append(doc)
-    return results
+        rerank_rows.append({
+            "id": doc.get("id"),
+            "name": doc.get("name"),
+            "rrf_rank": prev_rank,
+            "rerank_rank": new_rank + 1,
+            "rrf_score": rrf_order[r.index]["rrf_score"],
+            "rerank_score": round(r.relevance_score, 4),
+            "moved": prev_rank - (new_rank + 1),
+        })
+
+    debug = None
+    if explain:
+        debug = {
+            "stages": (hybrid_debug.get("stages", []) if hybrid_debug else []) + [
+                {
+                    "name": f"Rerank — Voyage AI {RERANK_MODEL}",
+                    "detail": (
+                        f"Top {RERANK_CANDIDATES} RRF candidates → cross-encoder relevance "
+                        "scores (query × document jointly), highest-relevance shown first"
+                    ),
+                    "rerank_model": RERANK_MODEL,
+                    "rerank_rows": rerank_rows,
+                }
+            ],
+        }
+    return results, debug
+
+
+def _summarise(results: list[dict], score_label: str, top: int = 10) -> list[dict]:
+    """Trim per-stage results for the UI: id, name, category, score only."""
+    out = []
+    for i, doc in enumerate(results[:top]):
+        out.append({
+            "rank": i + 1,
+            "id": doc.get("id"),
+            "name": doc.get("name"),
+            "category": doc.get("category"),
+            "score": doc.get("score"),
+            "score_label": score_label,
+        })
+    return out
 
 
 def _serialize(cursor) -> list[dict]:

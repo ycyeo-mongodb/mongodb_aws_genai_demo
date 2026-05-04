@@ -724,6 +724,192 @@
       font-size: 0.6875rem; font-weight: 700;
       white-space: nowrap;
     }
+
+    /* ===== EXPLAIN BUTTON (sidebar) ===== */
+    .explain-btn-side {
+      display: flex; align-items: center; gap: 0.5rem;
+      width: 100%; margin-top: 0.5rem; padding: 0.55rem 0.7rem;
+      background: var(--mongo-mist); color: var(--mongo-green-dark);
+      border: 1px solid var(--mongo-border); border-radius: 8px;
+      font-size: 0.8125rem; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: background 0.15s, border-color 0.15s;
+    }
+    .explain-btn-side:hover:not(:disabled) {
+      background: var(--mongo-spring); border-color: var(--mongo-green);
+    }
+    .explain-btn-side:disabled { opacity: 0.45; cursor: not-allowed; }
+    .explain-btn-icon {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--mongo-green); color: #fff;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 800; font-style: italic;
+      flex-shrink: 0;
+    }
+    /* small inline trigger inside the results bar */
+    .explain-btn-inline {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.35rem 0.7rem;
+      background: var(--mongo-green); color: #fff;
+      border: none; border-radius: 6px;
+      font-size: 0.75rem; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: background 0.15s;
+    }
+    .explain-btn-inline:hover { background: var(--mongo-green-dark); }
+    .explain-btn-inline:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ===== EXPLAIN MODAL ===== */
+    .explain-overlay {
+      position: fixed; inset: 0; z-index: 110;
+      background: rgba(0,30,43,0.65);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    }
+    .explain-overlay.open { opacity: 1; pointer-events: auto; }
+    .explain-modal {
+      background: var(--mongo-card); border-radius: 16px;
+      width: 880px; max-width: 95vw; max-height: 92vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 16px 64px rgba(0,30,43,0.35);
+      transform: scale(0.96); transition: transform 0.25s;
+    }
+    .explain-overlay.open .explain-modal { transform: scale(1); }
+    .explain-header {
+      padding: 1rem 1.25rem; border-bottom: 1px solid var(--mongo-border);
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(135deg, var(--mongo-green) 0%, var(--mongo-green-dark) 100%);
+      color: #fff; border-radius: 16px 16px 0 0;
+    }
+    .explain-header h2 {
+      font-size: 1rem; font-weight: 800;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .explain-header-sub {
+      font-size: 0.6875rem; font-weight: 600; opacity: 0.8;
+      margin-top: 2px;
+    }
+    .explain-mode-pill {
+      display: inline-block; padding: 0.18rem 0.55rem;
+      background: var(--mongo-green-light); color: var(--mongo-slate);
+      font-size: 0.625rem; font-weight: 800;
+      border-radius: 4px; letter-spacing: 0.05em;
+    }
+    .explain-close {
+      background: rgba(255,255,255,0.15); border: none;
+      width: 32px; height: 32px; border-radius: 8px;
+      color: #fff; font-size: 1.25rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .explain-close:hover { background: rgba(255,255,255,0.25); }
+    .explain-body {
+      overflow-y: auto; padding: 1.25rem; flex: 1;
+    }
+    .explain-stage {
+      margin-bottom: 1.1rem; border: 1px solid var(--mongo-border);
+      border-radius: 10px; overflow: hidden;
+    }
+    .explain-stage-head {
+      padding: 0.7rem 0.9rem;
+      background: var(--mongo-mist);
+      border-bottom: 1px solid var(--mongo-border);
+      display: flex; align-items: center; gap: 0.6rem;
+    }
+    .explain-stage-num {
+      width: 24px; height: 24px;
+      background: var(--mongo-green); color: #fff;
+      border-radius: 50%; display: inline-flex;
+      align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 800;
+      flex-shrink: 0;
+    }
+    .explain-stage-title {
+      font-size: 0.8125rem; font-weight: 800;
+      color: var(--mongo-green-dark);
+      font-family: 'SF Mono', ui-monospace, monospace;
+    }
+    .explain-stage-detail {
+      font-size: 0.75rem; color: var(--mongo-muted);
+      padding: 0.6rem 0.9rem 0;
+      line-height: 1.55;
+    }
+    .explain-stage-body { padding: 0.6rem 0.9rem 0.9rem; }
+    .explain-pre {
+      background: var(--mongo-slate); color: #cae8d9;
+      font-family: 'SF Mono', ui-monospace, monospace;
+      font-size: 0.7rem; line-height: 1.5;
+      padding: 0.7rem 0.85rem; border-radius: 8px;
+      max-height: 220px; overflow: auto;
+      white-space: pre; margin-top: 0.5rem;
+    }
+    .explain-toggle {
+      background: none; border: none; cursor: pointer;
+      font-size: 0.7rem; font-weight: 700;
+      color: var(--mongo-green-dark); padding: 0.2rem 0;
+      margin-top: 0.5rem; font-family: inherit;
+    }
+    .explain-toggle:hover { text-decoration: underline; }
+    .explain-collapsed { display: none; }
+    .explain-table {
+      width: 100%; border-collapse: collapse; margin-top: 0.5rem;
+      font-size: 0.75rem;
+    }
+    .explain-table th {
+      text-align: left; padding: 0.4rem 0.5rem;
+      background: var(--mongo-mist); color: var(--mongo-green-dark);
+      font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+      font-size: 0.625rem;
+      border-bottom: 1px solid var(--mongo-border);
+    }
+    .explain-table td {
+      padding: 0.4rem 0.5rem;
+      border-bottom: 1px solid var(--mongo-border);
+      vertical-align: middle;
+    }
+    .explain-table tr:last-child td { border-bottom: none; }
+    .explain-table .num {
+      font-family: 'SF Mono', ui-monospace, monospace;
+      font-size: 0.7rem; text-align: right;
+      color: var(--mongo-text);
+    }
+    .explain-table .rank-cell {
+      font-family: 'SF Mono', ui-monospace, monospace;
+      font-size: 0.7rem; font-weight: 700;
+      color: var(--mongo-green-dark);
+    }
+    .explain-table .doc-name { font-weight: 600; color: var(--mongo-text); }
+    .explain-table .moved-up { color: var(--mongo-green); font-weight: 800; }
+    .explain-table .moved-down { color: #cc3340; font-weight: 800; }
+    .explain-table .moved-same { color: var(--mongo-muted); }
+    .explain-emb {
+      font-family: 'SF Mono', ui-monospace, monospace;
+      font-size: 0.7rem; color: var(--mongo-text);
+      background: var(--mongo-mist); padding: 0.5rem 0.7rem;
+      border-radius: 6px; margin-top: 0.5rem;
+      word-break: break-all;
+    }
+    .explain-emb-label {
+      font-size: 0.625rem; font-weight: 700; color: var(--mongo-muted);
+      text-transform: uppercase; letter-spacing: 0.04em;
+      margin-right: 0.5rem;
+    }
+    .explain-formula {
+      font-family: 'SF Mono', ui-monospace, monospace;
+      font-size: 0.8125rem; padding: 0.55rem 0.75rem;
+      background: var(--mongo-slate); color: var(--mongo-green-light);
+      border-radius: 6px; margin-top: 0.5rem; display: inline-block;
+    }
+    .explain-callout {
+      margin-top: 0.5rem; padding: 0.55rem 0.7rem;
+      background: #fef9c3; color: #713f12;
+      border-left: 3px solid #ca8a04; border-radius: 4px;
+      font-size: 0.7rem; line-height: 1.5;
+    }
+    .explain-side-by-side {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+    }
+    @media (max-width: 720px) {
+      .explain-side-by-side { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -741,9 +927,7 @@
 
     <div class="search-bar">
       <select class="search-mode-select" id="modeSelect">
-        <option value="hybrid">Hybrid Search</option>
-        <option value="vector">Vector Search</option>
-        <option value="text">Text Search</option>
+        <option value="hybrid">Hybrid (RRF)</option>
         <option value="rerank">Hybrid + Rerank</option>
       </select>
       <input class="search-input" type="search" id="q" placeholder="Search LeafyShop products..." autocomplete="off" />
@@ -793,10 +977,12 @@
     <h3>Search Mode</h3>
     <div class="filter-group">
       <label class="filter-option"><input type="radio" name="mode" value="hybrid" checked> Hybrid (RRF) <span class="mode-badge">DEFAULT</span></label>
-      <label class="filter-option"><input type="radio" name="mode" value="vector"> Vector (Semantic)</label>
-      <label class="filter-option"><input type="radio" name="mode" value="text"> Text (Full-Text)</label>
       <label class="filter-option"><input type="radio" name="mode" value="rerank"> Hybrid + Rerank</label>
     </div>
+    <button class="explain-btn-side" id="explainBtnSide" disabled>
+      <span class="explain-btn-icon">i</span>
+      <span>How was this ranked?</span>
+    </button>
     <h3>Department</h3>
     <div class="filter-group" id="sidebarCategories">
       <label class="filter-option"><input type="radio" name="cat" value="" checked> All Departments</label>
@@ -826,6 +1012,10 @@
     </div>
     <div class="results-bar" id="resultsBar">
       <div class="results-count" id="resultsCount">Search for products to get started</div>
+      <button class="explain-btn-inline" id="explainBtnInline" disabled>
+        <span class="explain-btn-icon" style="background:rgba(255,255,255,0.2);width:14px;height:14px;font-size:0.6rem">i</span>
+        How was this ranked?
+      </button>
     </div>
     <div class="product-grid" id="results"></div>
   </section>
@@ -938,6 +1128,26 @@
   </div>
 </div>
 
+<!-- Explain (Search Pipeline) Modal -->
+<div class="explain-overlay" id="explainOverlay">
+  <div class="explain-modal">
+    <div class="explain-header">
+      <div>
+        <h2>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          Search Pipeline
+          <span class="explain-mode-pill" id="explainModePill">HYBRID</span>
+        </h2>
+        <div class="explain-header-sub" id="explainHeaderSub">Query: —</div>
+      </div>
+      <button class="explain-close" id="explainClose" aria-label="Close">&times;</button>
+    </div>
+    <div class="explain-body" id="explainBody">
+      <div style="text-align:center;color:var(--mongo-muted);font-size:0.85rem;padding:2rem">Loading pipeline diagnostics…</div>
+    </div>
+  </div>
+</div>
+
 <footer class="footer">
   <p>&copy; 2026 <strong>LeafyShop</strong> &mdash; GenAI Workshop Demo &middot; Powered by <strong>MongoDB Atlas Vector Search</strong> &middot; <strong>Voyage AI</strong> Embeddings</p>
 </footer>
@@ -967,6 +1177,15 @@
   var drawerBody = document.getElementById("drawerBody");
   var drawerFooter = document.getElementById("drawerFooter");
   var searchBtn = document.getElementById("searchBtn");
+  var explainBtnInline = document.getElementById("explainBtnInline");
+  var explainBtnSide = document.getElementById("explainBtnSide");
+  var explainOverlay = document.getElementById("explainOverlay");
+  var explainClose = document.getElementById("explainClose");
+  var explainBody = document.getElementById("explainBody");
+  var explainModePill = document.getElementById("explainModePill");
+  var explainHeaderSub = document.getElementById("explainHeaderSub");
+
+  var lastQuery = "";
 
   var BEDROCK_API = (window.BEDROCK_API_URL || "");
   var sellerBtn = document.getElementById("sellerBtn");
@@ -1136,11 +1355,18 @@
     showToast("Added to cart: " + product.name);
   }
 
+  function setExplainEnabled(enabled) {
+    if (explainBtnInline) explainBtnInline.disabled = !enabled;
+    if (explainBtnSide) explainBtnSide.disabled = !enabled;
+  }
+
   function runSearch() {
     var q = (qEl.value || "").trim();
     if (!q) {
       resultsEl.innerHTML = '<div class="empty-results">Start typing to search across products using MongoDB Atlas Vector Search</div>';
       resultsCount.innerHTML = 'Search for products to get started';
+      lastQuery = "";
+      setExplainEnabled(false);
       return;
     }
     setLoading(true);
@@ -1149,9 +1375,14 @@
     if (category) params.set("category", category);
     fetch("api/search?" + params.toString())
       .then(function(r) { return r.json(); })
-      .then(renderResults)
+      .then(function(data) {
+        renderResults(data);
+        lastQuery = q;
+        setExplainEnabled((data && data.results && data.results.length > 0));
+      })
       .catch(function() {
         resultsEl.innerHTML = '<div class="empty-results">Something went wrong. Is the API running?</div>';
+        setExplainEnabled(false);
       })
       .finally(function() { setLoading(false); });
   }
@@ -1515,6 +1746,225 @@
 
   tryonClose.addEventListener("click", function() { tryonOverlay.classList.remove("open"); });
   tryonOverlay.addEventListener("click", function(e) { if (e.target === tryonOverlay) tryonOverlay.classList.remove("open"); });
+
+  /* ========== EXPLAIN MODAL ========== */
+
+  function openExplainModal() {
+    if (!lastQuery) return;
+    explainOverlay.classList.add("open");
+    explainModePill.textContent = (mode === "rerank" ? "HYBRID + RERANK" : "HYBRID (RRF)");
+    explainHeaderSub.textContent = 'Query: "' + esc(lastQuery) + '"   ·   ' + (category || "All departments");
+    explainBody.innerHTML = '<div style="text-align:center;color:var(--mongo-muted);font-size:0.85rem;padding:2rem">Loading pipeline diagnostics…</div>';
+
+    var params = new URLSearchParams();
+    params.set("q", lastQuery);
+    params.set("mode", mode);
+    params.set("explain", "1");
+    if (category) params.set("category", category);
+
+    fetch("api/search?" + params.toString())
+      .then(function(r) { return r.json(); })
+      .then(function(data) { renderExplainModal(data); })
+      .catch(function() {
+        explainBody.innerHTML = '<div style="text-align:center;color:#cc3340;padding:2rem">Failed to load pipeline diagnostics.</div>';
+      });
+  }
+
+  function fmtScore(s) {
+    if (s === null || s === undefined) return '—';
+    if (typeof s !== 'number') return String(s);
+    return s >= 1 ? s.toFixed(3) : s.toFixed(4);
+  }
+
+  function fmtPipeline(pipe) {
+    if (!pipe) return '';
+    // Truncate long embedding arrays for readability
+    var clone = JSON.parse(JSON.stringify(pipe));
+    function trim(o) {
+      if (Array.isArray(o)) {
+        if (o.length > 12 && typeof o[0] === 'number') {
+          return o.slice(0, 8).concat(['…(' + (o.length - 8) + ' more dims)']);
+        }
+        return o.map(trim);
+      }
+      if (o && typeof o === 'object') {
+        var out = {};
+        Object.keys(o).forEach(function(k) { out[k] = trim(o[k]); });
+        return out;
+      }
+      return o;
+    }
+    return JSON.stringify(trim(clone), null, 2);
+  }
+
+  function stageEmbed(s) {
+    var preview = (s.embedding_preview || []).map(function(v) { return v.toFixed(4); }).join(', ');
+    return (
+      '<div class="explain-emb">' +
+        '<span class="explain-emb-label">First 8 dims:</span>[' + preview + ', …]' +
+      '</div>' +
+      '<div style="font-size:0.7rem;color:var(--mongo-muted);margin-top:0.4rem">' +
+        'Total dimensions: <strong>' + s.embedding_dims + '</strong>' +
+      '</div>'
+    );
+  }
+
+  function stageResultsTable(rows, opts) {
+    if (!rows || !rows.length) return '<div style="font-size:0.75rem;color:var(--mongo-muted)">No results.</div>';
+    opts = opts || {};
+    var scoreLabel = (rows[0] && rows[0].score_label) || 'score';
+    var html = '<table class="explain-table"><thead><tr>' +
+      '<th style="width:40px">#</th>' +
+      '<th>Document</th>' +
+      '<th style="text-align:right;width:90px">' + esc(scoreLabel) + '</th>' +
+      '</tr></thead><tbody>';
+    rows.forEach(function(r) {
+      html += '<tr>' +
+        '<td class="rank-cell">#' + r.rank + '</td>' +
+        '<td><div class="doc-name">' + esc(r.name || '') + '</div>' +
+            '<div style="font-size:0.65rem;color:var(--mongo-muted);margin-top:1px">' + esc(r.category || '') + '</div></td>' +
+        '<td class="num">' + fmtScore(r.score) + '</td>' +
+      '</tr>';
+    });
+    html += '</tbody></table>';
+    return html;
+  }
+
+  function fusionTable(rows) {
+    if (!rows || !rows.length) return '';
+    var html = '<table class="explain-table"><thead><tr>' +
+      '<th>Document</th>' +
+      '<th style="text-align:right">Vector rank · score</th>' +
+      '<th style="text-align:right">Text rank · score</th>' +
+      '<th style="text-align:right">RRF score</th>' +
+      '</tr></thead><tbody>';
+    rows.forEach(function(r) {
+      var v = r.vector || {};
+      var t = r.text || {};
+      html += '<tr>' +
+        '<td><div class="doc-name">' + esc(r.name || '') + '</div></td>' +
+        '<td class="num">' + (v.rank ? '#' + v.rank + ' · ' + fmtScore(v.score) : '<span style="color:var(--mongo-muted)">— miss</span>') + '</td>' +
+        '<td class="num">' + (t.rank ? '#' + t.rank + ' · ' + fmtScore(t.score) : '<span style="color:var(--mongo-muted)">— miss</span>') + '</td>' +
+        '<td class="num" style="font-weight:800;color:var(--mongo-green-dark)">' + fmtScore(r.rrf_score) + '</td>' +
+      '</tr>';
+    });
+    html += '</tbody></table>';
+    return html;
+  }
+
+  function rerankTable(rows) {
+    if (!rows || !rows.length) return '';
+    var html = '<table class="explain-table"><thead><tr>' +
+      '<th>Document</th>' +
+      '<th style="text-align:center">Before (RRF)</th>' +
+      '<th style="text-align:center">After (Rerank)</th>' +
+      '<th style="text-align:right">Rerank score</th>' +
+      '<th style="text-align:center">Δ</th>' +
+      '</tr></thead><tbody>';
+    rows.forEach(function(r) {
+      var moveCls = r.moved > 0 ? 'moved-up' : (r.moved < 0 ? 'moved-down' : 'moved-same');
+      var moveText = r.moved > 0 ? '↑' + r.moved : (r.moved < 0 ? '↓' + Math.abs(r.moved) : '=');
+      html += '<tr>' +
+        '<td><div class="doc-name">' + esc(r.name || '') + '</div></td>' +
+        '<td class="num" style="text-align:center">#' + r.rrf_rank + '</td>' +
+        '<td class="num" style="text-align:center;font-weight:700;color:var(--mongo-green-dark)">#' + r.rerank_rank + '</td>' +
+        '<td class="num">' + fmtScore(r.rerank_score) + '</td>' +
+        '<td class="num ' + moveCls + '" style="text-align:center">' + moveText + '</td>' +
+      '</tr>';
+    });
+    html += '</tbody></table>';
+    return html;
+  }
+
+  function buildPipelineToggle(pipelineJson, idSuffix) {
+    var id = 'explain-pipe-' + idSuffix;
+    return (
+      '<button class="explain-toggle" data-target="' + id + '">▸ Show MongoDB pipeline</button>' +
+      '<pre class="explain-pre explain-collapsed" id="' + id + '">' + esc(pipelineJson) + '</pre>'
+    );
+  }
+
+  function renderExplainModal(data) {
+    if (!data || !data.explain || !data.explain.stages) {
+      explainBody.innerHTML = '<div style="padding:2rem;color:var(--mongo-muted);text-align:center">No pipeline data returned.</div>';
+      return;
+    }
+    var stages = data.explain.stages;
+    var html = '';
+
+    // intro callout
+    html += '<div style="padding:0.7rem 0.85rem;background:var(--mongo-mist);border-radius:8px;margin-bottom:1rem;font-size:0.78rem;color:var(--mongo-text);line-height:1.5">' +
+      'Below is the exact pipeline that produced your <b>' + (data.results || []).length + ' results</b> for query <code style="background:#fff;padding:1px 5px;border-radius:3px">' + esc(data.query) + '</code>. ' +
+      'Each stage shows the MongoDB query, intermediate results, and how scores combine.' +
+      '</div>';
+
+    stages.forEach(function(s, idx) {
+      html += '<div class="explain-stage">';
+      html += '<div class="explain-stage-head">' +
+        '<span class="explain-stage-num">' + (idx + 1) + '</span>' +
+        '<span class="explain-stage-title">' + esc(s.name) + '</span>' +
+        '</div>';
+      if (s.detail) {
+        html += '<div class="explain-stage-detail">' + esc(s.detail) + '</div>';
+      }
+      html += '<div class="explain-stage-body">';
+
+      if (s.embedding_preview) {
+        html += stageEmbed(s);
+      }
+
+      if (s.results) {
+        html += stageResultsTable(s.results);
+      }
+
+      if (s.fusion_rows) {
+        html += '<div class="explain-formula">score = Σ 1 / (k + rank<sub>retriever</sub> + 1)   ·   k = ' + s.rrf_k + '</div>';
+        html += '<div style="font-size:0.7rem;color:var(--mongo-muted);margin-top:0.5rem;line-height:1.5">' +
+          'A document that appears in <b>both</b> retrievers gets contributions from each (e.g. V#1 + T#1 ≈ ' +
+          (1/(s.rrf_k+2)).toFixed(4) + '). A doc that appears in only one retriever gets a smaller score.' +
+          '</div>';
+        html += fusionTable(s.fusion_rows);
+      }
+
+      if (s.rerank_rows) {
+        html += '<div class="explain-callout">' +
+          '<b>Why rerank?</b> RRF only knows about ranks. The Voyage <code>' + esc(s.rerank_model) + '</code> cross-encoder ' +
+          'reads the query and each document <i>together</i> and scores their semantic relevance. This often reorders the list — ' +
+          'watch for results that jump up several places (▲).' +
+          '</div>';
+        html += rerankTable(s.rerank_rows);
+      }
+
+      if (s.pipeline) {
+        html += buildPipelineToggle(fmtPipeline(s.pipeline), idx);
+      }
+
+      html += '</div>'; // body
+      html += '</div>'; // stage
+    });
+
+    explainBody.innerHTML = html;
+
+    // Wire up collapse toggles
+    explainBody.querySelectorAll('.explain-toggle').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var target = document.getElementById(btn.getAttribute('data-target'));
+        if (!target) return;
+        var collapsed = target.classList.toggle('explain-collapsed');
+        btn.textContent = (collapsed ? '▸ Show ' : '▾ Hide ') + 'MongoDB pipeline';
+      });
+    });
+  }
+
+  if (explainBtnInline) explainBtnInline.addEventListener('click', openExplainModal);
+  if (explainBtnSide)   explainBtnSide.addEventListener('click', openExplainModal);
+  explainClose.addEventListener('click', function() { explainOverlay.classList.remove('open'); });
+  explainOverlay.addEventListener('click', function(e) { if (e.target === explainOverlay) explainOverlay.classList.remove('open'); });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && explainOverlay.classList.contains('open')) {
+      explainOverlay.classList.remove('open');
+    }
+  });
 
   tryonUpload.addEventListener("click", function() { tryonFileInput.click(); });
   tryonFileInput.addEventListener("change", function() {
