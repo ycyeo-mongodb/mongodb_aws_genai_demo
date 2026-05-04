@@ -1,9 +1,11 @@
 """
 E-Commerce Product Search API.
-Supports vector search, text search, hybrid search, and hybrid + rerank.
+Supports vector search, text search, hybrid search, hybrid + rerank, and
+multimodal image search (upload a photo and find matching catalog items).
 Includes mock cart & checkout for workshop interactivity.
 """
 
+import io
 import json
 import logging
 import os
@@ -14,8 +16,9 @@ from pathlib import Path
 from typing import Optional
 
 import requests
+from PIL import Image
 from dotenv import load_dotenv
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -153,12 +156,15 @@ def get_query_embedding(text: str) -> list[float]:
 # Search configuration constants — surfaced so the UI can show them.
 # ─────────────────────────────────────────────────────────────────
 EMBEDDING_MODEL = "voyage-4-large"
+MULTIMODAL_MODEL = "voyage-multimodal-3.5"
 RERANK_MODEL = "rerank-2.5"
 RRF_K = 60                  # reciprocal-rank-fusion constant
 HYBRID_CANDIDATES = 50      # docs pulled from each retriever before fusion
 RERANK_CANDIDATES = 30      # docs sent into the reranker after RRF
 FUZZY_MAX_EDITS = 2         # Atlas Search fuzzy: 0–2 character edits tolerated
 FUZZY_PREFIX_LEN = 1        # first N chars must match exactly (faster + safer)
+MAX_IMAGE_BYTES = 10 * 1024 * 1024   # 10 MB hard limit on uploads
+IMAGE_RESIZE_MAX = 1024              # cap longest side; multimodal models tokenize per pixel
 
 
 @app.get("/api/search")
@@ -466,6 +472,143 @@ def _serialize(cursor) -> list[dict]:
                 doc[k] = round(v, 4)
         results.append(doc)
     return results
+
+
+# ─────────────────────────────────────────────────────────────────
+# Multimodal image search
+#
+# Shopper uploads a photo (e.g. a model wearing a denim jacket) and optionally
+# adds a text refinement ("similar but in red"). We embed [text?, image] with
+# voyage-multimodal-3.5 — a single transformer backbone that puts text and
+# images in the same vector space — then $vectorSearch on the catalog's
+# `multimodal_embedding` field, which was built with the same model.
+# ─────────────────────────────────────────────────────────────────
+
+def _load_and_resize_image(raw: bytes) -> Image.Image:
+    """Open + downscale the upload so we don't pay for unnecessary tokens
+    (every 560 pixels is one token for voyage-multimodal-3.5)."""
+    try:
+        img = Image.open(io.BytesIO(raw))
+        img.load()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not decode image: {e}")
+    # Drop alpha + EXIF orientation handling
+    if img.mode not in ("RGB", "L"):
+        img = img.convert("RGB")
+    longest = max(img.size)
+    if longest > IMAGE_RESIZE_MAX:
+        scale = IMAGE_RESIZE_MAX / longest
+        new_size = (int(img.size[0] * scale), int(img.size[1] * scale))
+        img = img.resize(new_size, Image.Resampling.LANCZOS)
+    return img
+
+
+def _multimodal_search_pipeline(query_vector: list[float], category: Optional[str], limit: int) -> list[dict]:
+    vs_stage: dict = {
+        "$vectorSearch": {
+            "index": "multimodal_index",
+            "path": "multimodal_embedding",
+            "queryVector": query_vector,
+            "numCandidates": max(150, limit * 12),
+            "limit": limit,
+        }
+    }
+    if category:
+        vs_stage["$vectorSearch"]["filter"] = {"category": category}
+    return [
+        vs_stage,
+        {"$addFields": {"score": {"$meta": "vectorSearchScore"}}},
+        {"$project": {"description_embedding": 0, "multimodal_embedding": 0}},
+    ]
+
+
+@app.post("/api/search/image")
+async def search_by_image(
+    image: UploadFile = File(..., description="Product photo, outfit shot, or any reference image"),
+    q: Optional[str] = Form(None, description="Optional text refinement, e.g. 'similar but in black'"),
+    category: Optional[str] = Form(None),
+    limit: int = Form(12),
+    explain: bool = Form(False),
+):
+    if limit < 1 or limit > 50:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 50")
+
+    raw = await image.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Empty upload.")
+    if len(raw) > MAX_IMAGE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Image too large. Limit is {MAX_IMAGE_BYTES // (1024*1024)}MB.",
+        )
+
+    pil_image = _load_and_resize_image(raw)
+    refinement = (q or "").strip()
+
+    # Voyage multimodal accepts a list of inputs; each input is an interleaved
+    # sequence of strings and PIL Images. With one input, we get one vector.
+    if refinement:
+        # Phrase the text as an instruction so the model understands the
+        # refinement applies to the image.
+        composed_prompt = f"Find products matching this photo. Additional preference: {refinement}"
+        sequence = [composed_prompt, pil_image]
+    else:
+        sequence = ["Find products matching this photo.", pil_image]
+
+    try:
+        result = vo.multimodal_embed(
+            inputs=[sequence],
+            model=MULTIMODAL_MODEL,
+            input_type="query",
+        )
+    except Exception as e:
+        logger.exception("multimodal embed failed")
+        raise HTTPException(status_code=502, detail=f"Embedding failed: {e}")
+
+    query_vector = result.embeddings[0]
+    pipeline = _multimodal_search_pipeline(query_vector, category, limit)
+    results = _serialize(coll.aggregate(pipeline))
+
+    payload: dict = {
+        "mode": "multimodal",
+        "query_text": refinement,
+        "image_filename": image.filename,
+        "image_size_bytes": len(raw),
+        "image_resized_to": list(pil_image.size),
+        "model": MULTIMODAL_MODEL,
+        "count": len(results),
+        "results": results,
+    }
+    if explain:
+        payload["explain"] = {
+            "stages": [
+                {
+                    "name": f"Embed [text?, image] with {MULTIMODAL_MODEL}",
+                    "detail": (
+                        "Single transformer backbone produces a 1024-dim vector for the "
+                        "interleaved query (instruction text + uploaded image). The same "
+                        "model embedded every product description, so they share a vector space."
+                    ),
+                    "embedding_preview": [round(v, 4) for v in query_vector[:8]],
+                    "embedding_dims": len(query_vector),
+                    "input_pieces": (
+                        ["text", "image"] if refinement else ["image"]
+                    ),
+                    "image_size": list(pil_image.size),
+                    "total_tokens": getattr(result, "total_tokens", None),
+                },
+                {
+                    "name": "$vectorSearch on multimodal_index",
+                    "detail": (
+                        f"Cosine similarity over multimodal_embedding (1024-dim, {MULTIMODAL_MODEL}); "
+                        f"top {limit} of {pipeline[0]['$vectorSearch']['numCandidates']} candidates"
+                    ),
+                    "pipeline": pipeline,
+                    "results": _summarise(results, "similarity"),
+                },
+            ],
+        }
+    return payload
 
 
 class CartItem(BaseModel):

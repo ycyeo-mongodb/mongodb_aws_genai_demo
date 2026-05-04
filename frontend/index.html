@@ -93,6 +93,23 @@
     }
     .search-btn:hover { background: var(--mongo-green-dark); }
     .search-btn svg { width: 20px; height: 20px; fill: #fff; }
+    /* Camera icon — inline trigger for multimodal image search */
+    .camera-btn {
+      background: #fff;
+      border: none; border-left: 1px solid var(--mongo-border);
+      padding: 0 0.85rem; cursor: pointer;
+      display: flex; align-items: center; gap: 0.35rem;
+      color: var(--mongo-green-dark);
+      transition: background 0.15s;
+    }
+    .camera-btn:hover { background: var(--mongo-mist); }
+    .camera-btn svg { width: 20px; height: 20px; stroke: var(--mongo-green-dark); }
+    .camera-btn-label {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.02em;
+    }
+    @media (max-width: 720px) {
+      .camera-btn-label { display: none; }
+    }
     .header-actions {
       display: flex; align-items: center; gap: 0.25rem;
     }
@@ -910,6 +927,135 @@
     @media (max-width: 720px) {
       .explain-side-by-side { grid-template-columns: 1fr; }
     }
+
+    /* ===== IMAGE SEARCH MODAL ===== */
+    .imgsearch-overlay {
+      position: fixed; inset: 0; z-index: 105;
+      background: rgba(0,30,43,0.65);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    }
+    .imgsearch-overlay.open { opacity: 1; pointer-events: auto; }
+    .imgsearch-modal {
+      background: var(--mongo-card); border-radius: 16px;
+      width: 540px; max-width: 95vw; max-height: 92vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 16px 64px rgba(0,30,43,0.35);
+      transform: scale(0.96); transition: transform 0.25s;
+    }
+    .imgsearch-overlay.open .imgsearch-modal { transform: scale(1); }
+    .imgsearch-header {
+      padding: 1rem 1.25rem; border-bottom: 1px solid var(--mongo-border);
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(135deg, var(--mongo-green) 0%, var(--mongo-green-dark) 100%);
+      color: #fff; border-radius: 16px 16px 0 0;
+    }
+    .imgsearch-header h2 {
+      font-size: 1rem; font-weight: 800;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .imgsearch-header-sub {
+      font-size: 0.7rem; opacity: 0.85; margin-top: 2px; line-height: 1.4;
+    }
+    .imgsearch-close {
+      background: rgba(255,255,255,0.15); border: none;
+      width: 32px; height: 32px; border-radius: 8px; color: #fff;
+      font-size: 1.25rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .imgsearch-close:hover { background: rgba(255,255,255,0.25); }
+    .imgsearch-body { padding: 1.25rem; overflow-y: auto; }
+    .imgsearch-drop {
+      border: 2px dashed var(--mongo-border); border-radius: 12px;
+      padding: 1.75rem 1rem; text-align: center;
+      cursor: pointer; transition: border-color 0.2s, background 0.2s;
+      min-height: 200px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 0.4rem;
+    }
+    .imgsearch-drop:hover { border-color: var(--mongo-green); background: var(--mongo-mist); }
+    .imgsearch-drop.has-image { border-style: solid; border-color: var(--mongo-green); padding: 0.5rem; }
+    .imgsearch-drop.dragging { border-color: var(--mongo-green); background: var(--mongo-mist); }
+    .imgsearch-drop img {
+      max-width: 100%; max-height: 280px; border-radius: 8px;
+      object-fit: contain;
+    }
+    .imgsearch-drop-icon {
+      font-size: 2rem; line-height: 1; opacity: 0.4;
+    }
+    .imgsearch-drop-label {
+      font-size: 0.875rem; color: var(--mongo-muted);
+    }
+    .imgsearch-drop-label strong {
+      display: block; font-size: 0.95rem; color: var(--mongo-text);
+      margin-bottom: 0.2rem;
+    }
+    .imgsearch-text-row {
+      margin-top: 0.85rem;
+    }
+    .imgsearch-text-label {
+      font-size: 0.75rem; font-weight: 700; color: var(--mongo-green-dark);
+      display: block; margin-bottom: 0.3rem;
+    }
+    .imgsearch-text-input {
+      width: 100%; padding: 0.55rem 0.75rem;
+      font-size: 0.8125rem; font-family: inherit;
+      border: 1px solid var(--mongo-border); border-radius: 8px;
+      outline: none; transition: border-color 0.15s;
+    }
+    .imgsearch-text-input:focus { border-color: var(--mongo-green); }
+    .imgsearch-text-hint {
+      font-size: 0.7rem; color: var(--mongo-muted); margin-top: 0.25rem;
+    }
+    .imgsearch-footer {
+      padding: 0.85rem 1.25rem; border-top: 1px solid var(--mongo-border);
+      display: flex; gap: 0.5rem; align-items: center;
+      background: var(--mongo-mist); border-radius: 0 0 16px 16px;
+    }
+    .imgsearch-meta {
+      flex: 1; font-size: 0.7rem; color: var(--mongo-muted);
+      font-family: 'SF Mono', ui-monospace, monospace;
+    }
+    .imgsearch-go-btn {
+      padding: 0.6rem 1.1rem;
+      background: var(--mongo-green); color: #fff;
+      border: none; border-radius: 8px;
+      font-size: 0.8125rem; font-weight: 800; cursor: pointer;
+      font-family: inherit; transition: background 0.15s;
+    }
+    .imgsearch-go-btn:hover:not(:disabled) { background: var(--mongo-green-dark); }
+    .imgsearch-go-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .imgsearch-clear-btn {
+      padding: 0.6rem 0.75rem;
+      background: #fff; color: var(--mongo-muted);
+      border: 1px solid var(--mongo-border); border-radius: 8px;
+      font-size: 0.7rem; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: border-color 0.15s, color 0.15s;
+    }
+    .imgsearch-clear-btn:hover { border-color: var(--mongo-muted); color: var(--mongo-text); }
+
+    /* Banner shown above results when image search produced them */
+    .imgsearch-banner {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.7rem 0.9rem; margin-bottom: 0.75rem;
+      background: linear-gradient(90deg, var(--mongo-mist) 0%, #ffffff 100%);
+      border: 1px solid var(--mongo-border); border-left: 4px solid var(--mongo-green);
+      border-radius: 8px;
+    }
+    .imgsearch-banner img {
+      width: 56px; height: 56px; border-radius: 6px; object-fit: cover;
+    }
+    .imgsearch-banner-text { flex: 1; font-size: 0.8125rem; color: var(--mongo-text); }
+    .imgsearch-banner-text strong { color: var(--mongo-green-dark); display: block; margin-bottom: 1px; }
+    .imgsearch-banner-text small { color: var(--mongo-muted); font-size: 0.7rem; }
+    .imgsearch-banner-clear {
+      background: none; border: 1px solid var(--mongo-border); cursor: pointer;
+      padding: 0.3rem 0.65rem; border-radius: 6px;
+      font-size: 0.7rem; font-weight: 700; color: var(--mongo-muted);
+      font-family: inherit;
+    }
+    .imgsearch-banner-clear:hover { color: var(--mongo-text); border-color: var(--mongo-muted); }
   </style>
 </head>
 <body>
@@ -931,6 +1077,10 @@
         <option value="rerank">Hybrid + Rerank</option>
       </select>
       <input class="search-input" type="search" id="q" placeholder="Search LeafyShop products..." autocomplete="off" />
+      <button class="camera-btn" id="cameraBtn" aria-label="Search by image" title="Search by image (multimodal)">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span class="camera-btn-label">Image</span>
+      </button>
       <button class="search-btn" id="searchBtn" aria-label="Search">
         <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
       </button>
@@ -1009,6 +1159,14 @@
         <span class="hero-pill">Hybrid RRF</span>
         <span class="hero-pill">Reranking</span>
       </div>
+    </div>
+    <div class="imgsearch-banner" id="imgsearchBanner" style="display:none">
+      <img id="imgsearchBannerImg" alt="Query image" />
+      <div class="imgsearch-banner-text">
+        <strong>Image search results</strong>
+        <span id="imgsearchBannerSub">—</span>
+      </div>
+      <button class="imgsearch-banner-clear" id="imgsearchBannerClear">Clear &times;</button>
     </div>
     <div class="results-bar" id="resultsBar">
       <div class="results-count" id="resultsCount">Search for products to get started</div>
@@ -1124,6 +1282,45 @@
         </div>
       </div>
       <div id="tryonRecommendations" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Image Search Modal -->
+<div class="imgsearch-overlay" id="imgsearchOverlay">
+  <div class="imgsearch-modal">
+    <div class="imgsearch-header">
+      <div>
+        <h2>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="4"/></svg>
+          Search by Image
+        </h2>
+        <div class="imgsearch-header-sub">
+          Upload a photo &mdash; e.g. a model wearing an outfit &mdash; and we'll surface matching products.
+          <br/>Powered by <strong>voyage-multimodal-3.5</strong> on Atlas Vector Search.
+        </div>
+      </div>
+      <button class="imgsearch-close" id="imgsearchClose" aria-label="Close">&times;</button>
+    </div>
+    <div class="imgsearch-body">
+      <div class="imgsearch-drop" id="imgsearchDrop">
+        <div class="imgsearch-drop-icon">📷</div>
+        <div class="imgsearch-drop-label">
+          <strong>Click or drag a photo here</strong>
+          JPEG / PNG / WebP up to 10&nbsp;MB
+        </div>
+      </div>
+      <input type="file" id="imgsearchFile" accept="image/*" style="display:none" />
+      <div class="imgsearch-text-row">
+        <label class="imgsearch-text-label" for="imgsearchText">Optional refinement (text)</label>
+        <input class="imgsearch-text-input" type="text" id="imgsearchText" placeholder="e.g. similar but in red, or under $50" />
+        <div class="imgsearch-text-hint">Leave blank to find products that visually match the photo. Add text to refine across modalities.</div>
+      </div>
+    </div>
+    <div class="imgsearch-footer">
+      <div class="imgsearch-meta" id="imgsearchMeta"></div>
+      <button class="imgsearch-clear-btn" id="imgsearchClearBtn">Clear</button>
+      <button class="imgsearch-go-btn" id="imgsearchGoBtn" disabled>Find similar products</button>
     </div>
   </div>
 </div>
@@ -1362,6 +1559,9 @@
 
   function runSearch() {
     var q = (qEl.value || "").trim();
+    // any text search supersedes a previous image search — hide the banner
+    var banner = document.getElementById('imgsearchBanner');
+    if (banner) banner.style.display = 'none';
     if (!q) {
       resultsEl.innerHTML = '<div class="empty-results">Start typing to search across products using MongoDB Atlas Vector Search</div>';
       resultsCount.innerHTML = 'Search for products to get started';
@@ -1964,6 +2164,144 @@
     if (e.key === 'Escape' && explainOverlay.classList.contains('open')) {
       explainOverlay.classList.remove('open');
     }
+  });
+
+  /* ========== IMAGE SEARCH (multimodal) ========== */
+  var cameraBtn = document.getElementById('cameraBtn');
+  var imgsearchOverlay = document.getElementById('imgsearchOverlay');
+  var imgsearchClose = document.getElementById('imgsearchClose');
+  var imgsearchDrop = document.getElementById('imgsearchDrop');
+  var imgsearchFile = document.getElementById('imgsearchFile');
+  var imgsearchText = document.getElementById('imgsearchText');
+  var imgsearchGoBtn = document.getElementById('imgsearchGoBtn');
+  var imgsearchClearBtn = document.getElementById('imgsearchClearBtn');
+  var imgsearchMeta = document.getElementById('imgsearchMeta');
+  var imgsearchBanner = document.getElementById('imgsearchBanner');
+  var imgsearchBannerImg = document.getElementById('imgsearchBannerImg');
+  var imgsearchBannerSub = document.getElementById('imgsearchBannerSub');
+  var imgsearchBannerClear = document.getElementById('imgsearchBannerClear');
+
+  var imgsearchState = { file: null, dataUrl: null };
+
+  function imgsearchReset() {
+    imgsearchState.file = null;
+    imgsearchState.dataUrl = null;
+    imgsearchDrop.classList.remove('has-image');
+    imgsearchDrop.innerHTML =
+      '<div class="imgsearch-drop-icon">📷</div>' +
+      '<div class="imgsearch-drop-label">' +
+        '<strong>Click or drag a photo here</strong>' +
+        'JPEG / PNG / WebP up to 10&nbsp;MB' +
+      '</div>';
+    imgsearchFile.value = '';
+    imgsearchMeta.textContent = '';
+    imgsearchGoBtn.disabled = true;
+  }
+
+  function loadImageFile(file) {
+    if (!file || !file.type.startsWith('image/')) {
+      showToast('Please choose an image file.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('Image too large. Limit is 10MB.');
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      imgsearchState.file = file;
+      imgsearchState.dataUrl = ev.target.result;
+      imgsearchDrop.innerHTML = '<img src="' + ev.target.result + '" alt="Selected photo" />';
+      imgsearchDrop.classList.add('has-image');
+      imgsearchMeta.textContent = file.name + ' · ' + Math.round(file.size / 1024) + ' KB';
+      imgsearchGoBtn.disabled = false;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  cameraBtn.addEventListener('click', function() {
+    imgsearchOverlay.classList.add('open');
+  });
+  imgsearchClose.addEventListener('click', function() { imgsearchOverlay.classList.remove('open'); });
+  imgsearchOverlay.addEventListener('click', function(e) { if (e.target === imgsearchOverlay) imgsearchOverlay.classList.remove('open'); });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && imgsearchOverlay.classList.contains('open')) {
+      imgsearchOverlay.classList.remove('open');
+    }
+  });
+
+  imgsearchDrop.addEventListener('click', function() { imgsearchFile.click(); });
+  imgsearchFile.addEventListener('change', function() { loadImageFile(imgsearchFile.files[0]); });
+  imgsearchDrop.addEventListener('dragover', function(e) {
+    e.preventDefault(); imgsearchDrop.classList.add('dragging');
+  });
+  imgsearchDrop.addEventListener('dragleave', function() { imgsearchDrop.classList.remove('dragging'); });
+  imgsearchDrop.addEventListener('drop', function(e) {
+    e.preventDefault(); imgsearchDrop.classList.remove('dragging');
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      loadImageFile(e.dataTransfer.files[0]);
+    }
+  });
+  imgsearchClearBtn.addEventListener('click', imgsearchReset);
+
+  function clearImageSearchBanner() {
+    imgsearchBanner.style.display = 'none';
+    imgsearchBannerImg.src = '';
+    imgsearchBannerSub.textContent = '';
+  }
+  imgsearchBannerClear.addEventListener('click', function() {
+    clearImageSearchBanner();
+    resultsEl.innerHTML = '<div class="empty-results">Start typing to search across products using MongoDB Atlas Vector Search</div>';
+    resultsCount.innerHTML = 'Search for products to get started';
+    lastQuery = '';
+    setExplainEnabled(false);
+  });
+
+  imgsearchGoBtn.addEventListener('click', function() {
+    if (!imgsearchState.file) return;
+    var refinement = (imgsearchText.value || '').trim();
+
+    var fd = new FormData();
+    fd.append('image', imgsearchState.file);
+    if (refinement) fd.append('q', refinement);
+    if (category) fd.append('category', category);
+    fd.append('limit', '12');
+
+    imgsearchGoBtn.disabled = true;
+    imgsearchGoBtn.textContent = 'Embedding & searching…';
+    setLoading(true);
+
+    fetch('api/search/image', { method: 'POST', body: fd })
+      .then(function(r) {
+        if (!r.ok) return r.json().then(function(e) { throw new Error(e.detail || 'Image search failed'); });
+        return r.json();
+      })
+      .then(function(data) {
+        // Render in the main grid using the existing renderer
+        renderResults({ query: refinement || '(image)', mode: 'multimodal', results: data.results || [] });
+        // Show the banner with the query thumbnail
+        imgsearchBanner.style.display = 'flex';
+        imgsearchBannerImg.src = imgsearchState.dataUrl;
+        var subParts = [
+          (data.results || []).length + ' matches via ' + (data.model || 'voyage-multimodal'),
+          'image ' + (data.image_resized_to ? data.image_resized_to.join('×') : ''),
+        ];
+        if (refinement) subParts.push('refinement: "' + esc(refinement) + '"');
+        imgsearchBannerSub.innerHTML = subParts.join(' &middot; ');
+        // Image search doesn't support the explain modal (different pipeline shape)
+        setExplainEnabled(false);
+        lastQuery = '';
+        // Close the upload modal
+        imgsearchOverlay.classList.remove('open');
+      })
+      .catch(function(err) {
+        showToast(String(err.message || err));
+      })
+      .finally(function() {
+        imgsearchGoBtn.disabled = !imgsearchState.file;
+        imgsearchGoBtn.textContent = 'Find similar products';
+        setLoading(false);
+      });
   });
 
   tryonUpload.addEventListener("click", function() { tryonFileInput.click(); });
